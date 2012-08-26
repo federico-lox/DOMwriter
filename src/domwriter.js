@@ -4,7 +4,7 @@
  * the original behaviour of the native function.
  *
  * @author Federico "Lox" Lucignano <http://plus.ly/federico.lox>
- * 
+ *
  * @see https://github.com/federico-lox/DOMwriter
  */
 
@@ -13,8 +13,15 @@
 	'use strict';
 
 	function domwriter() {
-		var doc,
-			CLASS_NAME = 'domwriter_script';
+		var CLASS_NAME = 'domwriter_script',
+			IDLE_TIME = 1000,
+			callbacks = {
+				idle: [],
+				complete: []
+			},
+			sandbox,
+			doc,
+			idleTimer;
 
 		function TargetException(element) {
 			this.message = "Target is not a DOM element:" + element;
@@ -23,6 +30,76 @@
 		TargetException.prototype.toString = function () {
 			return this.message;
 		};
+
+		/**
+		 * fires an event that can be caught with addEventListener
+		 *
+		 * @private
+		 *
+		 * @param {String} event The name of the event to fire
+		 * @param {Object} scope The scope for the event handler
+		 *
+		 * @see  addEventListener
+		 */
+		function fireEvent(event, scope) {
+			var stack = callbacks[event],
+				len;
+
+			if (stack instanceof Array && (len = stack.length) > 0) {
+				context.setTimeout(function () {
+					var x = 0;
+
+					while (x < len) {
+						stack[x].call(scope);
+						x += 1;
+					}
+				}, 0);
+			}
+		}
+
+		/**
+		 * Attaches an handler to an event
+		 *
+		 * @public
+		 *
+		 * @param {String} event The name of the event
+		 * @param {Function} callback The event handler
+		 *
+		 * @see  removeEventListener
+		 */
+		function addEventListener(event, callback) {
+			if (callbacks[event]) {
+				callbacks[event].push(callback);
+			}
+		}
+
+		/**
+		 * Detaches an handler for an event
+		 *
+		 * @public
+		 *
+		 * @param {String} event The name of the event
+		 * @param {Function} callback The previously registered handler to be detached
+		 *
+		 * @see addEventListener
+		 */
+		function removeEventListener(event, callback) {
+			var stack = callbacks[event],
+				len;
+
+			if (stack instanceof Array) {
+				len = stack.length;
+
+				do {
+					len -= 1;
+
+					if (len && stack[len] === callback) {
+						stack.splice(len, 1);
+						break;
+					}
+				} while (len);
+			}
+		}
 
 		/**
 		 * Create a replica of a script node, differently from cloneNode
@@ -142,6 +219,18 @@
 						});
 					} catch (err) {}
 				}
+
+				//setup check for idleness
+				idleTimer = context.setTimeout(
+					function () {
+						context.clearTimeout(idleTimer);
+						fireEvent('idle', sandbox);
+					},
+					IDLE_TIME
+				);
+
+				//fire completion event
+				fireEvent('complete', sandbox);
 			}
 		}
 
@@ -154,6 +243,7 @@
 		 */
 		function target(element) {
 			if (element instanceof HTMLElement) {
+				sandbox = element;
 				doc = element.ownerDocument;
 
 				var wrapper = doc.createElement('div'),
@@ -170,6 +260,11 @@
 						item,
 						x,
 						y;
+
+					//clear idleness timer
+					if (idleTimer) {
+						context.clearTimeout(idleTimer);
+					}
 
 					//push the html to the temporary div
 					//to get DOM nodes out of it
@@ -213,6 +308,8 @@
 		 * @public
 		 */
 		function reset() {
+			sandbox = undefined;
+
 			if (doc && doc.write && doc.writeln) {
 				//restore native implementations
 				doc.write = doc.backupWrite;
@@ -222,7 +319,9 @@
 
 		return {
 			target: target,
-			reset: reset
+			reset: reset,
+			addEventListener: addEventListener,
+			removeEventListener: removeEventListener
 		};
 	}
 
@@ -238,4 +337,3 @@
 		context.Wikia.DOMWriter = domwriter();
 	}
 }(this));
-
