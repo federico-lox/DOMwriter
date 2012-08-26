@@ -344,10 +344,6 @@
 		define('domwriter', domwriter);
 	} else {
 		//Namespace
-		if (!context.Wikia) {
-			context.Wikia = {};
-		}
-
-		context.Wikia.DOMWriter = domwriter();
+		context.DOMWriter = domwriter();
 	}
 }(this));
