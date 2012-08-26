@@ -13,11 +13,22 @@
 	'use strict';
 
 	function domwriter() {
-		var CLASS_NAME = 'domwriter_script',
-			IDLE_TIME = 1000,
+			/**
+			 * Constants
+			 */
+		var CLASS_NAME = 'domwriter_script',//class applied to scripts to be processed
+			IDLE_TIME = 2000,//time in milliseconds to detect idleness
+			/**
+			 * Globals
+			 */
 			callbacks = {
-				idle: [],
-				complete: []
+				/**
+				 * Events
+				 */
+				attached: [],//fired when target is invoked
+				written: [],//fired when all the content of a document.write call has completed processing
+				idle: [],//fired after IDLE_TIME milliseconds have passed from the last document.write call
+				detached: []//fired when reset is invoked
 			},
 			sandbox,
 			doc,
@@ -230,7 +241,7 @@
 				);
 
 				//fire completion event
-				fireEvent('complete', sandbox);
+				fireEvent('written', sandbox);
 			}
 		}
 
@@ -297,6 +308,8 @@
 				doc.writeln = function (html) {
 					this.write(html + "\n");
 				};
+
+				fireEvent('attached', sandbox);
 			} else {
 				throw new TargetException();
 			}
@@ -308,13 +321,14 @@
 		 * @public
 		 */
 		function reset() {
-			sandbox = undefined;
-
 			if (doc && doc.write && doc.writeln) {
 				//restore native implementations
 				doc.write = doc.backupWrite;
 				doc.writeln = doc.backupWriteLn;
 			}
+
+			sandbox = undefined;
+			fireEvent('detached', context);
 		}
 
 		return {
