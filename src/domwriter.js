@@ -101,14 +101,14 @@
 			if (stack instanceof Array) {
 				len = stack.length;
 
-				do {
+				while (len > 0) {
 					len -= 1;
 
-					if (len && stack[len] === callback) {
+					if (stack[len] === callback) {
 						stack.splice(len, 1);
 						break;
 					}
-				} while (len);
+				}
 			}
 		}
 
